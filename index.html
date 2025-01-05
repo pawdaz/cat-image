@@ -4,10 +4,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cat Emotion Classifier</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #imagePreview {
+            max-width: 300px;
+            height: auto;
+            border: 2px dashed #ccc;
+            margin-bottom: 20px;
+        }
+        #results {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <h1>Cat Emotion Classifier</h1>
-    <p>Bu sayfa modelinizi yüklemek için hazır.</p>
+    <p>Fotoğraf yükleyin ve sonucu öğrenin.</p>
+
+    <!-- Fotoğraf Yükleme Alanı -->
+    <input type="file" id="fileInput" accept="image/*">
+    <br><br>
+    <img id="imagePreview" src="" alt="Yüklenen Fotoğraf">
+    <br><br>
+
+    <!-- "Analiz Et" Butonu -->
+    <button id="analyzeButton">Analiz Et</button>
+
+    <!-- Sonuç Bölümü -->
+    <div id="results">Sonuç burada görünecek.</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="model.json"></script>
+
+    <script>
+        let model;
+
+        // Modeli yükleme
+        async function loadModel() {
+            model = await tf.loadGraphModel('model.json');
+            console.log("Model yüklendi.");
+        }
+
+        loadModel();
+
+        // Fotoğraf önizlemesi
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const resultsDiv = document.getElementById('results');
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // "Analiz Et" Butonu
+        document.getElementById('analyzeButton').addEventListener('click', async () => {
+            if (!fileInput.files.length) {
+                alert('Lütfen bir fotoğraf yükleyin!');
+                return;
+            }
+
+            // Resmi Tensorflow'a uygun formata dönüştürme
+            const img = new Image();
+            img.src = imagePreview.src;
+            img.onload = async () => {
+                const tensorImg = tf.browser.fromPixels(img)
+                    .resizeNearestNeighbor([224, 224])  // Modelin girdi boyutuna göre yeniden boyutlandır
+                    .toFloat()
+                    .expandDims(0);
+
+                const prediction = await model.predict(tensorImg).data();
+                console.log(prediction);
+
+                // Tahmin sonuçlarına göre duygu sınıflandırması
+                const emotions = ['Mutlu', 'Sinirli', 'Üzgün'];
+                const maxIndex = prediction.indexOf(Math.max(...prediction));
+                resultsDiv.textContent = `Duygu: ${emotions[maxIndex]}`;
+            };
+        });
+    </script>
 </body>
 </html>
+
