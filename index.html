@@ -1,150 +1,124 @@
 <!DOCTYPE html>
-<html lang="tr">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pawdaz - Kedi Duygu Analizi</title>
+    <title>Cat Emotion Classifier</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
             background-color: #000000;
+            font-family: Arial, sans-serif;
             color: #ffffff;
             text-align: center;
             padding: 20px;
         }
-
         .container {
-            background-color: #ffffff;
-            color: #000000;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 600px;
+            background-color: #1a1a1a;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
             margin: auto;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0px 0px 20px rgba(255, 204, 0, 0.8);
         }
-
         h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
             color: #ffcc00;
+        }
+        p {
+            font-size: 16px;
             margin-bottom: 20px;
         }
-
         input[type="file"] {
-            display: none;
-        }
-
-        .file-upload-label {
-            background-color: #ffcc00;
-            color: #000000;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-
-        .file-upload-label:hover {
-            background-color: #e6b800;
-        }
-
-        .analyze-button {
-            background-color: #ffcc00;
-            color: #000000;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .analyze-button:hover {
-            background-color: #e6b800;
-        }
-
-        img {
-            max-width: 100%;
-            margin: 20px 0;
+            display: block;
+            margin: 10px auto;
+            padding: 10px;
             border-radius: 10px;
+            background-color: #ffcc00;
+            color: #000000;
+            font-weight: bold;
         }
-
-        .result {
+        button {
+            background-color: #ffcc00;
+            color: #000000;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #e6b800;
+        }
+        #result {
             margin-top: 20px;
             font-size: 18px;
+            font-weight: bold;
             color: #ffcc00;
+        }
+        .loading-message {
+            display: none;
+            margin-top: 20px;
+            font-size: 14px;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
 </head>
-
 <body>
     <div class="container">
         <h1>Cat Emotion Classifier</h1>
         <p>Fotoğraf yükleyin ve sonucu öğrenin.</p>
-
-        <!-- Fotoğraf Yükleme -->
-        <label class="file-upload-label" for="file-input">Dosya Seç</label>
-        <input id="file-input" type="file" accept="image/*" onchange="previewImage(event)">
-        <img id="uploaded-image" alt="Yüklenen fotoğraf burada görünecek." style="display: none;">
-        <br>
-        <!-- Analiz Et Butonu -->
-        <button class="analyze-button" onclick="predict()">Analiz Et</button>
-
-        <!-- Sonuç -->
-        <div class="result" id="result">Sonuç burada görünecek.</div>
+        <input type="file" id="upload-image" accept="image/*">
+        <button onclick="predict()">Analiz Et</button>
+        <p id="result">Sonuç burada görünecek.</p>
+        <p class="loading-message" id="loading-message">Model yükleniyor, lütfen bekleyin...</p>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
     <script>
-        const modelURL = "./model.json";
-        const metadataURL = "./metadata.json";
+        const URL = "https://pawdaz.github.io/cat-image/";
+
         let model;
 
+        // Model yükleme fonksiyonu
         async function loadModel() {
+            const modelURL = `${URL}model.json`;
+            const metadataURL = `${URL}metadata.json`;
+
+            document.getElementById("loading-message").style.display = "block"; // "Model yükleniyor..." mesajını göster
+
             try {
                 model = await tmImage.load(modelURL, metadataURL);
-                console.log("Model yüklendi!");
+                console.log("Model başarıyla yüklendi!");
+                document.getElementById("loading-message").style.display = "none"; // Yüklenme tamamlanınca mesajı gizle
             } catch (error) {
-                alert("Model yüklenirken bir hata oluştu: " + error.message);
+                alert(`Model yüklenirken bir hata oluştu: ${error.message}`);
+                document.getElementById("loading-message").innerText = "Model yüklenirken hata oluştu!";
             }
-        }
-
-        loadModel();
-
-        function previewImage(event) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-
-            reader.onload = function () {
-                const imageElement = document.getElementById("uploaded-image");
-                imageElement.src = reader.result;
-                imageElement.style.display = "block";
-            };
-
-            reader.readAsDataURL(file);
         }
 
         async function predict() {
-            try {
-                const imageElement = document.getElementById("uploaded-image");
-                if (!imageElement.src) {
-                    alert("Lütfen bir fotoğraf yükleyin.");
-                    return;
-                }
-
-                const prediction = await model.predict(imageElement);
-                const highestPrediction = prediction.reduce((prev, current) =>
-                    prev.probability > current.probability ? prev : current
-                );
-
-                document.getElementById("result").innerText =
-                    `Bu fotoğrafta kedi ${highestPrediction.className} olarak görünüyor. Güven oranı: ${(
-                        highestPrediction.probability * 100
-                    ).toFixed(2)}%`;
-            } catch (error) {
-                alert("Tahmin yapılamadı: " + error.message);
+            if (!model) {
+                alert("Model henüz yüklenmedi!");
+                return;
             }
+
+            const imageInput = document.getElementById("upload-image");
+            const file = imageInput.files[0];
+            if (!file) {
+                alert("Lütfen bir görüntü yükleyin!");
+                return;
+            }
+
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+
+            const prediction = await model.predict(img);
+            document.getElementById("result").innerText = `Tahmin Sonucu: ${prediction[0].className} (${(prediction[0].probability * 100).toFixed(2)}%)`;
         }
+
+        loadModel(); // Sayfa açıldığında modeli yükle
     </script>
 </body>
-
 </html>
