@@ -1,100 +1,150 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cat Emotion Classifier</title>
+    <title>Pawdaz - Kedi Duygu Analizi</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #000000;
+            color: #ffffff;
             text-align: center;
             padding: 20px;
         }
-        #imagePreview {
-            max-width: 300px;
-            height: auto;
-            border: 2px dashed #ccc;
+
+        .container {
+            background-color: #ffffff;
+            color: #000000;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #ffcc00;
             margin-bottom: 20px;
         }
-        #results {
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-label {
+            background-color: #ffcc00;
+            color: #000000;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .file-upload-label:hover {
+            background-color: #e6b800;
+        }
+
+        .analyze-button {
+            background-color: #ffcc00;
+            color: #000000;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .analyze-button:hover {
+            background-color: #e6b800;
+        }
+
+        img {
+            max-width: 100%;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .result {
             margin-top: 20px;
             font-size: 18px;
-            font-weight: bold;
+            color: #ffcc00;
         }
     </style>
 </head>
+
 <body>
-    <h1>Cat Emotion Classifier</h1>
-    <p>Fotoğraf yükleyin ve sonucu öğrenin.</p>
+    <div class="container">
+        <h1>Cat Emotion Classifier</h1>
+        <p>Fotoğraf yükleyin ve sonucu öğrenin.</p>
 
-    <!-- Fotoğraf Yükleme Alanı -->
-    <input type="file" id="fileInput" accept="image/*">
-    <br><br>
-    <img id="imagePreview" src="" alt="Yüklenen Fotoğraf">
-    <br><br>
+        <!-- Fotoğraf Yükleme -->
+        <label class="file-upload-label" for="file-input">Dosya Seç</label>
+        <input id="file-input" type="file" accept="image/*" onchange="previewImage(event)">
+        <img id="uploaded-image" alt="Yüklenen fotoğraf burada görünecek." style="display: none;">
+        <br>
+        <!-- Analiz Et Butonu -->
+        <button class="analyze-button" onclick="predict()">Analiz Et</button>
 
-    <!-- "Analiz Et" Butonu -->
-    <button id="analyzeButton">Analiz Et</button>
-
-    <!-- Sonuç Bölümü -->
-    <div id="results">Sonuç burada görünecek.</div>
+        <!-- Sonuç -->
+        <div class="result" id="result">Sonuç burada görünecek.</div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="model.json"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
     <script>
+        const modelURL = "./model.json";
+        const metadataURL = "./metadata.json";
         let model;
 
-        // Modeli yükleme
         async function loadModel() {
-            model = await tf.loadGraphModel('model.json');
-            console.log("Model yüklendi.");
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                console.log("Model yüklendi!");
+            } catch (error) {
+                alert("Model yüklenirken bir hata oluştu: " + error.message);
+            }
         }
 
         loadModel();
 
-        // Fotoğraf önizlemesi
-        const fileInput = document.getElementById('fileInput');
-        const imagePreview = document.getElementById('imagePreview');
-        const resultsDiv = document.getElementById('results');
-
-        fileInput.addEventListener('change', (event) => {
+        function previewImage(event) {
             const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imagePreview.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+            const reader = new FileReader();
 
-        // "Analiz Et" Butonu
-        document.getElementById('analyzeButton').addEventListener('click', async () => {
-            if (!fileInput.files.length) {
-                alert('Lütfen bir fotoğraf yükleyin!');
-                return;
-            }
-
-            // Resmi Tensorflow'a uygun formata dönüştürme
-            const img = new Image();
-            img.src = imagePreview.src;
-            img.onload = async () => {
-                const tensorImg = tf.browser.fromPixels(img)
-                    .resizeNearestNeighbor([224, 224])  // Modelin girdi boyutuna göre yeniden boyutlandır
-                    .toFloat()
-                    .expandDims(0);
-
-                const prediction = await model.predict(tensorImg).data();
-                console.log(prediction);
-
-                // Tahmin sonuçlarına göre duygu sınıflandırması
-                const emotions = ['Mutlu', 'Sinirli', 'Üzgün'];
-                const maxIndex = prediction.indexOf(Math.max(...prediction));
-                resultsDiv.textContent = `Duygu: ${emotions[maxIndex]}`;
+            reader.onload = function () {
+                const imageElement = document.getElementById("uploaded-image");
+                imageElement.src = reader.result;
+                imageElement.style.display = "block";
             };
-        });
+
+            reader.readAsDataURL(file);
+        }
+
+        async function predict() {
+            try {
+                const imageElement = document.getElementById("uploaded-image");
+                if (!imageElement.src) {
+                    alert("Lütfen bir fotoğraf yükleyin.");
+                    return;
+                }
+
+                const prediction = await model.predict(imageElement);
+                const highestPrediction = prediction.reduce((prev, current) =>
+                    prev.probability > current.probability ? prev : current
+                );
+
+                document.getElementById("result").innerText =
+                    `Bu fotoğrafta kedi ${highestPrediction.className} olarak görünüyor. Güven oranı: ${(
+                        highestPrediction.probability * 100
+                    ).toFixed(2)}%`;
+            } catch (error) {
+                alert("Tahmin yapılamadı: " + error.message);
+            }
+        }
     </script>
 </body>
-</html>
 
+</html>
